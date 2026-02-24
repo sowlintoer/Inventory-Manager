@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Stock Pro 2026 - Sync & Upload</title>
+    <title>Stock Pro 2026 - Google Sheets Sync</title>
     <style>
         :root { --primary: #007bff; --success: #28a745; --dark: #212529; --light: #f8f9fa; }
         body { font-family: 'Inter', system-ui, sans-serif; margin: 0; background: #eef2f7; color: #333; }
@@ -36,6 +36,7 @@
         .out { background: #f8d7da; color: #842029; }
         
         .sync-status { font-size: 12px; color: var(--success); text-align: right; margin-bottom: 10px; }
+        .loading-overlay { font-style: italic; color: #666; }
     </style>
 </head>
 <body>
@@ -47,10 +48,11 @@
 </div>
 
 <div class="container">
-    <div class="sync-status" id="syncStat">● Local Auto-Sync Active</div>
+    <div class="sync-status" id="syncStat">● Connecting to Google Sheets...</div>
 
     <div id="inventory" class="tab-content active">
         <h2>Stock Inventory</h2>
+        <div id="loadMsg" class="loading-overlay">Fetching live data...</div>
         <table>
             <thead><tr><th>Item Name</th><th>Location</th><th>Balance</th></tr></thead>
             <tbody id="stockTableBody"></tbody>
@@ -92,7 +94,7 @@
                 <div><label>Quantity</label><input type="number" id="txnQty" placeholder="0"></div>
                 <div style="grid-column: span 2;"><label>Remarks</label><input type="text" id="txnRem" placeholder="Invoice / Customer"></div>
             </div>
-            <button class="btn btn-primary" onclick="saveTransaction()">Confirm Transaction</button>
+            <button id="submitBtn" class="btn btn-primary" onclick="saveTransaction()">Confirm & Sync to Sheet</button>
         </div>
     </div>
 
@@ -102,16 +104,39 @@
             <thead><tr><th>Date</th><th>Item</th><th>Type</th><th>Qty</th><th>Remarks</th></tr></thead>
             <tbody id="historyBody"></tbody>
         </table>
-        <button class="btn btn-outline" onclick="clearData()" style="color:red; border-color:red; width:auto;">Clear All Data</button>
+        <button class="btn btn-outline" onclick="clearData()" style="color:red; border-color:red; width:auto;">Clear Local Cache</button>
     </div>
 </div>
 
 <script>
-    // DATA MANAGEMENT & SYNC
-    let inventory = JSON.parse(localStorage.getItem('inventory')) || {
-        "HDMI Cable - 5 MM - HO": { location: "HO", balance: 68 }
-    };
+    // --- CONFIGURATION ---
+    const SCRIPT_URL = "YOUR_DEPLOYED_WEB_APP_URL_HERE";
+
+    let inventory = JSON.parse(localStorage.getItem('inventory')) || {};
     let historyLog = JSON.parse(localStorage.getItem('historyLog')) || [];
+
+    // DATA SYNC LOGIC
+    async function loadFromSheet() {
+        if(!SCRIPT_URL.includes("http")) return;
+        try {
+            const response = await fetch(SCRIPT_URL);
+            const data = await response.json();
+            
+            // Format: [Item, Location, Balance] assuming header row exists
+            const newInv = {};
+            for(let i = 1; i < data.length; i++) {
+                const [name, loc, bal] = data[i];
+                if(name) newInv[name.trim()] = { location: loc, balance: parseFloat(bal) || 0 };
+            }
+            inventory = newInv;
+            document.getElementById('syncStat').innerText = "● Google Sheets Synced";
+            document.getElementById('loadMsg').style.display = "none";
+            syncData(); // Update LocalStorage with Sheet data
+        } catch (e) {
+            document.getElementById('syncStat').innerText = "● Using Local Data (Offline)";
+            console.error("Sync error:", e);
+        }
+    }
 
     function syncData() {
         localStorage.setItem('inventory', JSON.stringify(inventory));
@@ -119,7 +144,6 @@
         updateUI();
     }
 
-    // UI LOGIC
     function showTab(id) {
         document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
         document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
@@ -135,7 +159,6 @@
         document.getElementById('bulkWrap').style.display = mode === 'bulk' ? 'block' : 'none';
     }
 
-    // BULK UPLOAD LOGIC
     function handleFileUpload() {
         const file = document.getElementById('csvFile').files[0];
         if (!file) return alert("Select a file first");
@@ -155,27 +178,51 @@
         reader.readAsText(file);
     }
 
-    // TRANSACTION LOGIC
-    function saveTransaction() {
+    async function saveTransaction() {
         const date = document.getElementById('txnDate').value;
         const type = document.getElementById('txnType').value;
         const qty = parseInt(document.getElementById('txnQty').value);
         const mode = document.getElementById('entryMode').value;
+        const rem = document.getElementById('txnRem').value;
+        const btn = document.getElementById('submitBtn');
         let itemName = "";
+        let locName = "";
 
         if (!date || isNaN(qty)) return alert("Fill required fields");
 
         if (mode === 'new') {
             itemName = document.getElementById('newName').value;
-            inventory[itemName] = { location: document.getElementById('newLoc').value, balance: 0 };
+            locName = document.getElementById('newLoc').value;
+            inventory[itemName] = { location: locName, balance: 0 };
         } else {
             itemName = document.getElementById('itemSelect').value;
+            locName = inventory[itemName].location;
         }
 
+        // Update Local State
         if (type === 'Input') inventory[itemName].balance += qty;
         else inventory[itemName].balance -= qty;
 
-        historyLog.push({ date, item: itemName, type, qty, rem: document.getElementById('txnRem').value });
+        const txnObj = { date, item: itemName, type, qty, rem, location: locName };
+        historyLog.push(txnObj);
+        
+        // Push to Google Sheets
+        btn.disabled = true;
+        btn.innerText = "Syncing...";
+        
+        try {
+            await fetch(SCRIPT_URL, {
+                method: 'POST',
+                mode: 'no-cors', // Essential for Google Apps Script POST
+                body: JSON.stringify(txnObj)
+            });
+            document.getElementById('syncStat').innerText = "● Last Sync: " + new Date().toLocaleTimeString();
+        } catch (e) {
+            alert("Local save successful, but Google Sync failed.");
+        }
+
+        btn.disabled = false;
+        btn.innerText = "Confirm & Sync to Sheet";
         syncData();
         alert("Transaction Saved");
     }
@@ -184,7 +231,6 @@
         const sBody = document.getElementById('stockTableBody');
         const hBody = document.getElementById('historyBody');
         const sel = document.getElementById('itemSelect');
-        
         sBody.innerHTML = ''; hBody.innerHTML = ''; sel.innerHTML = '';
         
         for (let item in inventory) {
@@ -197,10 +243,11 @@
         });
     }
 
-    function clearData() { if(confirm("Delete everything?")) { localStorage.clear(); location.reload(); } }
+    function clearData() { if(confirm("Delete local cache? This won't delete the Google Sheet.")) { localStorage.clear(); location.reload(); } }
 
+    // INITIALIZE
     document.getElementById('txnDate').valueAsDate = new Date();
-    updateUI();
+    loadFromSheet().then(updateUI);
 </script>
 </body>
 </html>
