@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Stock Pro 2026 - Google Sheets Sync</title>
+    <title>Stock Pro 2026 - Live Sync</title>
     <style>
         :root { --primary: #007bff; --success: #28a745; --dark: #212529; --light: #f8f9fa; }
         body { font-family: 'Inter', system-ui, sans-serif; margin: 0; background: #eef2f7; color: #333; }
@@ -36,7 +36,7 @@
         .out { background: #f8d7da; color: #842029; }
         
         .sync-status { font-size: 12px; color: var(--success); text-align: right; margin-bottom: 10px; }
-        .loading-overlay { font-style: italic; color: #666; }
+        .loading-overlay { font-style: italic; color: #666; margin-bottom: 10px; }
     </style>
 </head>
 <body>
@@ -52,7 +52,7 @@
 
     <div id="inventory" class="tab-content active">
         <h2>Stock Inventory</h2>
-        <div id="loadMsg" class="loading-overlay">Fetching live data...</div>
+        <div id="loadMsg" class="loading-overlay">Fetching live data from Google Sheet...</div>
         <table>
             <thead><tr><th>Item Name</th><th>Location</th><th>Balance</th></tr></thead>
             <tbody id="stockTableBody"></tbody>
@@ -109,31 +109,36 @@
 </div>
 
 <script>
-    // --- CONFIGURATION ---
-    const SCRIPT_URL = "YOUR_DEPLOYED_WEB_APP_URL_HERE";
+    // --- INTEGRATED SCRIPT URL ---
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbySAihW-4a7pQ50f0vKQDpxJBBTspsZFa8u94VJesHV5Lj2kGa1c4HgIUdmEEBxqo_l/exec";
 
     let inventory = JSON.parse(localStorage.getItem('inventory')) || {};
     let historyLog = JSON.parse(localStorage.getItem('historyLog')) || [];
 
     // DATA SYNC LOGIC
     async function loadFromSheet() {
-        if(!SCRIPT_URL.includes("http")) return;
         try {
             const response = await fetch(SCRIPT_URL);
             const data = await response.json();
             
-            // Format: [Item, Location, Balance] assuming header row exists
             const newInv = {};
+            // Assuming Sheet Layout: [Item, Location, Balance] and skipping header row 0
             for(let i = 1; i < data.length; i++) {
                 const [name, loc, bal] = data[i];
-                if(name) newInv[name.trim()] = { location: loc, balance: parseFloat(bal) || 0 };
+                if(name) {
+                    newInv[name.toString().trim()] = { 
+                        location: loc || "N/A", 
+                        balance: parseFloat(bal) || 0 
+                    };
+                }
             }
             inventory = newInv;
-            document.getElementById('syncStat').innerText = "● Google Sheets Synced";
+            document.getElementById('syncStat').innerText = "● Google Sheets Connected";
             document.getElementById('loadMsg').style.display = "none";
-            syncData(); // Update LocalStorage with Sheet data
+            syncData(); 
         } catch (e) {
-            document.getElementById('syncStat').innerText = "● Using Local Data (Offline)";
+            document.getElementById('syncStat').innerText = "● Offline Mode (Local Data)";
+            document.getElementById('loadMsg').innerText = "Using locally cached data.";
             console.error("Sync error:", e);
         }
     }
@@ -167,13 +172,16 @@
         reader.onload = function(e) {
             const rows = e.target.result.split('\n');
             rows.forEach(row => {
-                const [name, loc, stock] = row.split(',');
-                if (name && loc) {
-                    inventory[name.trim()] = { location: loc.trim(), balance: parseInt(stock) || 0 };
+                const cols = row.split(',');
+                if (cols.length >= 2) {
+                    const name = cols[0].trim();
+                    const loc = cols[1].trim();
+                    const stock = cols[2] ? parseFloat(cols[2]) : 0;
+                    if(name) inventory[name] = { location: loc, balance: stock };
                 }
             });
             syncData();
-            alert("Bulk items imported successfully!");
+            alert("Bulk items processed locally. Log a transaction to sync to sheet.");
         };
         reader.readAsText(file);
     }
@@ -185,21 +193,23 @@
         const mode = document.getElementById('entryMode').value;
         const rem = document.getElementById('txnRem').value;
         const btn = document.getElementById('submitBtn');
+        
         let itemName = "";
         let locName = "";
 
         if (!date || isNaN(qty)) return alert("Fill required fields");
 
         if (mode === 'new') {
-            itemName = document.getElementById('newName').value;
-            locName = document.getElementById('newLoc').value;
+            itemName = document.getElementById('newName').value.trim();
+            locName = document.getElementById('newLoc').value.trim();
+            if(!itemName) return alert("Item name is required");
             inventory[itemName] = { location: locName, balance: 0 };
         } else {
             itemName = document.getElementById('itemSelect').value;
-            locName = inventory[itemName].location;
+            locName = inventory[itemName] ? inventory[itemName].location : "";
         }
 
-        // Update Local State
+        // Local Update
         if (type === 'Input') inventory[itemName].balance += qty;
         else inventory[itemName].balance -= qty;
 
@@ -208,23 +218,23 @@
         
         // Push to Google Sheets
         btn.disabled = true;
-        btn.innerText = "Syncing...";
+        btn.innerText = "Syncing to Drive...";
         
         try {
             await fetch(SCRIPT_URL, {
                 method: 'POST',
-                mode: 'no-cors', // Essential for Google Apps Script POST
+                mode: 'no-cors',
                 body: JSON.stringify(txnObj)
             });
             document.getElementById('syncStat').innerText = "● Last Sync: " + new Date().toLocaleTimeString();
         } catch (e) {
-            alert("Local save successful, but Google Sync failed.");
+            alert("Saved locally, but could not reach Google Sheets.");
         }
 
         btn.disabled = false;
         btn.innerText = "Confirm & Sync to Sheet";
         syncData();
-        alert("Transaction Saved");
+        alert("Transaction Recorded Successfully");
     }
 
     function updateUI() {
@@ -243,9 +253,9 @@
         });
     }
 
-    function clearData() { if(confirm("Delete local cache? This won't delete the Google Sheet.")) { localStorage.clear(); location.reload(); } }
+    function clearData() { if(confirm("Clear local cache? (This will not affect your Google Sheet)")) { localStorage.clear(); location.reload(); } }
 
-    // INITIALIZE
+    // ON START
     document.getElementById('txnDate').valueAsDate = new Date();
     loadFromSheet().then(updateUI);
 </script>
