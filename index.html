@@ -110,7 +110,7 @@
 
 <script>
     // --- INTEGRATED SCRIPT URL ---
-    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbySAihW-4a7pQ50f0vKQDpxJBBTspsZFa8u94VJesHV5Lj2kGa1c4HgIUdmEEBxqo_l/exec";
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyEYi84jMRM838uCR0bz-saO5OpFJZtUTknoyQ_0XMdsFVxxhxwPRyu9-FquVXywv1i/exec";
 
     let inventory = JSON.parse(localStorage.getItem('inventory')) || {};
     let historyLog = JSON.parse(localStorage.getItem('historyLog')) || [];
@@ -138,7 +138,7 @@
             syncData(); 
         } catch (e) {
             document.getElementById('syncStat').innerText = "● Offline Mode (Local Data)";
-            document.getElementById('loadMsg').innerText = "Using locally cached data.";
+            document.getElementById('loadMsg').innerText = "Using locally cached data. Check Apps Script permissions if this is unexpected.";
             console.error("Sync error:", e);
         }
     }
