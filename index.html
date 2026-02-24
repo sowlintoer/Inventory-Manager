@@ -3,237 +3,204 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Stock Register 2025 - Integrated</title>
+    <title>Stock Pro 2026 - Sync & Upload</title>
     <style>
-        :root { --primary: #007bff; --success: #28a745; --dark: #343a40; --light: #f4f4f9; --accent: #6f42c1; }
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; background-color: var(--light); }
+        :root { --primary: #007bff; --success: #28a745; --dark: #212529; --light: #f8f9fa; }
+        body { font-family: 'Inter', system-ui, sans-serif; margin: 0; background: #eef2f7; color: #333; }
         
-        .tab-bar { display: flex; background: var(--dark); sticky: top; }
-        .tab-btn { padding: 15px 25px; border: none; background: none; color: white; cursor: pointer; transition: 0.3s; font-weight: bold; }
-        .tab-btn.active { background: var(--primary); border-bottom: 3px solid white; }
+        .tab-bar { display: flex; background: var(--dark); padding: 0 10%; position: sticky; top: 0; z-index: 100; }
+        .tab-btn { padding: 18px 25px; border: none; background: none; color: #adb5bd; cursor: pointer; font-weight: 600; transition: 0.2s; }
+        .tab-btn.active { color: white; border-bottom: 4px solid var(--primary); }
 
-        .container { max-width: 1100px; margin: 20px auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); }
-        .tab-content { display: none; animate: fadein 0.5s; }
+        .container { max-width: 1100px; margin: 30px auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.05); }
+        .tab-content { display: none; }
         .tab-content.active { display: block; }
 
-        h2 { border-bottom: 2px solid #eee; padding-bottom: 10px; color: var(--dark); margin-top: 0; }
+        .card { border: 1px solid #e0e6ed; padding: 20px; border-radius: 10px; margin-bottom: 25px; background: #fdfdfd; }
+        .form-grid { display: grid; gap: 15px; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
         
-        /* Form Styling */
-        .card { background: #f8f9fa; padding: 20px; border-radius: 8px; border: 1px solid #e9ecef; margin-bottom: 20px; }
-        .form-grid { display: grid; gap: 15px; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); }
-        label { display: block; margin-bottom: 5px; font-weight: 600; font-size: 0.9rem; color: #555; }
-        input, select { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; }
+        input, select { width: 100%; padding: 12px; border: 1px solid #ced4da; border-radius: 6px; font-size: 14px; margin-top: 5px; }
+        label { font-size: 13px; font-weight: 700; color: #495057; }
+
+        .upload-box { border: 2px dashed #007bff; padding: 20px; text-align: center; border-radius: 10px; background: #f0f7ff; margin-top: 15px; }
+        .btn { padding: 12px 20px; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; transition: 0.2s; }
+        .btn-primary { background: var(--primary); color: white; width: 100%; margin-top: 15px; }
+        .btn-outline { background: transparent; border: 1px solid var(--primary); color: var(--primary); margin-top: 10px; }
+
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        th { text-align: left; padding: 15px; background: #f8f9fa; font-size: 12px; color: #888; text-transform: uppercase; }
+        td { padding: 15px; border-top: 1px solid #eee; font-size: 14px; }
         
-        /* Toggle Switch */
-        .mode-toggle { margin-bottom: 20px; display: flex; align-items: center; gap: 10px; background: #eee; padding: 5px; border-radius: 30px; width: fit-content; }
-        .toggle-opt { padding: 8px 15px; border-radius: 20px; cursor: pointer; font-size: 0.85rem; font-weight: bold; transition: 0.3s; }
-        .toggle-opt.active { background: white; box-shadow: 0 2px 5px rgba(0,0,0,0.1); color: var(--primary); }
-
-        button.main-btn { width: 100%; padding: 15px; background: var(--success); color: white; border: none; border-radius: 6px; font-weight: bold; font-size: 1rem; cursor: pointer; margin-top: 15px; }
-        button.main-btn:hover { background: #218838; }
-
-        /* Tables */
-        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-        th, td { border-bottom: 1px solid #eee; padding: 15px 10px; text-align: left; }
-        th { background: #f1f3f5; font-size: 0.85rem; text-transform: uppercase; color: #666; }
-        .badge { padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; text-transform: uppercase; }
-        .in { background: #d4edda; color: #155724; }
-        .out { background: #f8d7da; color: #721c24; }
-        .stock-low { color: #dc3545; font-weight: bold; }
-
-        @keyframes fadein { from { opacity: 0; } to { opacity: 1; } }
+        .badge { padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; }
+        .in { background: #d1e7dd; color: #0f5132; }
+        .out { background: #f8d7da; color: #842029; }
+        
+        .sync-status { font-size: 12px; color: var(--success); text-align: right; margin-bottom: 10px; }
     </style>
 </head>
 <body>
 
 <div class="tab-bar">
-    <button class="tab-btn active" onclick="openTab(event, 'inventory')">Inventory Balance</button>
-    <button class="tab-btn" onclick="openTab(event, 'log')">Post Transaction</button>
-    <button class="tab-btn" onclick="openTab(event, 'history')">History Log</button>
+    <button class="tab-btn active" onclick="showTab('inventory')">Dashboard</button>
+    <button class="tab-btn" onclick="showTab('log')">Post Transaction</button>
+    <button class="tab-btn" onclick="showTab('history')">History</button>
 </div>
 
 <div class="container">
-    
+    <div class="sync-status" id="syncStat">● Local Auto-Sync Active</div>
+
     <div id="inventory" class="tab-content active">
-        <h2>Live Stock Status</h2>
+        <h2>Stock Inventory</h2>
         <table>
-            <thead>
-                <tr>
-                    <th>Item Name</th>
-                    <th>Location</th>
-                    <th>Current Balance</th>
-                </tr>
-            </thead>
+            <thead><tr><th>Item Name</th><th>Location</th><th>Balance</th></tr></thead>
             <tbody id="stockTableBody"></tbody>
         </table>
     </div>
 
     <div id="log" class="tab-content">
-        <h2>Post New Entry</h2>
-        
-        <div class="mode-toggle">
-            <div id="opt-existing" class="toggle-opt active" onclick="setEntryMode('existing')">Existing Item</div>
-            <div id="opt-new" class="toggle-opt" onclick="setEntryMode('new')">Add New Item</div>
-        </div>
-
+        <h2>New Transaction</h2>
         <div class="card">
             <div class="form-grid">
+                <div><label>Date</label><input type="date" id="txnDate"></div>
                 <div>
-                    <label>Date</label>
-                    <input type="date" id="txnDate">
-                </div>
-
-                <div id="existingItemWrap">
-                    <label>Select Item</label>
-                    <select id="itemSelect"></select>
-                </div>
-                <div id="newItemWrap" style="display:none;">
-                    <label>New Item Name</label>
-                    <input type="text" id="newItemName" placeholder="e.g. HDMI Splitter 4K">
-                </div>
-                <div id="locationWrap" style="display:none;">
-                    <label>Storage Location</label>
-                    <input type="text" id="newItemLoc" placeholder="e.g. HO">
-                </div>
-
-                <div>
-                    <label>Type</label>
-                    <select id="txnType">
-                        <option value="Input">Input (Stock In)</option>
-                        <option value="Output">Output (Stock Out)</option>
+                    <label>Item Source</label>
+                    <select id="entryMode" onchange="toggleEntryMode()">
+                        <option value="existing">Existing Item</option>
+                        <option value="new">Add New (Manual)</option>
+                        <option value="bulk">Bulk Upload (CSV)</option>
                     </select>
                 </div>
-                <div>
-                    <label>Quantity</label>
-                    <input type="number" id="txnQty" placeholder="0">
+                <div id="existingWrap"><label>Select Item</label><select id="itemSelect"></select></div>
+                <div id="newWrap" style="display:none;"><label>Item Name</label><input type="text" id="newName"></div>
+                <div id="locWrap" style="display:none;"><label>Location</label><input type="text" id="newLoc"></div>
+            </div>
+
+            <div id="bulkWrap" class="upload-box" style="display:none;">
+                <strong>Upload CSV File</strong><br>
+                <small>Format: Item Name, Location, Initial Stock</small><br>
+                <input type="file" id="csvFile" accept=".csv" class="btn-outline">
+                <button class="btn btn-outline" onclick="handleFileUpload()">Process CSV</button>
+            </div>
+
+            <div class="form-grid" style="margin-top:15px;">
+                <div><label>Transaction Type</label>
+                    <select id="txnType">
+                        <option value="Input">Input (In)</option>
+                        <option value="Output">Output (Out)</option>
+                    </select>
                 </div>
+                <div><label>Quantity</label><input type="number" id="txnQty" placeholder="0"></div>
+                <div style="grid-column: span 2;"><label>Remarks</label><input type="text" id="txnRem" placeholder="Invoice / Customer"></div>
             </div>
-            <div style="margin-top:15px;">
-                <label>Remarks / Reference</label>
-                <input type="text" id="txnRemarks" placeholder="Customer name, Invoice #, etc.">
-            </div>
-            <button class="main-btn" onclick="processEntry()">Save Entry</button>
+            <button class="btn btn-primary" onclick="saveTransaction()">Confirm Transaction</button>
         </div>
     </div>
 
     <div id="history" class="tab-content">
         <h2>Transaction History</h2>
         <table>
-            <thead>
-                <tr>
-                    <th>Date</th>
-                    <th>Item</th>
-                    <th>Type</th>
-                    <th>Qty</th>
-                    <th>Remarks</th>
-                </tr>
-            </thead>
-            <tbody id="historyTableBody"></tbody>
+            <thead><tr><th>Date</th><th>Item</th><th>Type</th><th>Qty</th><th>Remarks</th></tr></thead>
+            <tbody id="historyBody"></tbody>
         </table>
+        <button class="btn btn-outline" onclick="clearData()" style="color:red; border-color:red; width:auto;">Clear All Data</button>
     </div>
-
 </div>
 
 <script>
-    // Initial State
-    let inventory = {
-
+    // DATA MANAGEMENT & SYNC
+    let inventory = JSON.parse(localStorage.getItem('inventory')) || {
+        "HDMI Cable - 5 MM - HO": { location: "HO", balance: 68 }
     };
-    let historyLog = [];
-    let entryMode = 'existing';
+    let historyLog = JSON.parse(localStorage.getItem('historyLog')) || [];
 
-    function openTab(evt, tabName) {
-        let contents = document.getElementsByClassName("tab-content");
-        for (let i = 0; i < contents.length; i++) contents[i].style.display = "none";
-        let btns = document.getElementsByClassName("tab-btn");
-        for (let i = 0; i < btns.length; i++) btns[i].classList.remove("active");
-        document.getElementById(tabName).style.display = "block";
-        evt.currentTarget.classList.add("active");
+    function syncData() {
+        localStorage.setItem('inventory', JSON.stringify(inventory));
+        localStorage.setItem('historyLog', JSON.stringify(historyLog));
+        updateUI();
     }
 
-    function setEntryMode(mode) {
-        entryMode = mode;
-        document.getElementById('opt-existing').classList.toggle('active', mode === 'existing');
-        document.getElementById('opt-new').classList.toggle('active', mode === 'new');
-        
-        document.getElementById('existingItemWrap').style.display = (mode === 'existing') ? 'block' : 'none';
-        document.getElementById('newItemWrap').style.display = (mode === 'new') ? 'block' : 'none';
-        document.getElementById('locationWrap').style.display = (mode === 'new') ? 'block' : 'none';
+    // UI LOGIC
+    function showTab(id) {
+        document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.getElementById(id).classList.add('active');
+        event.currentTarget.classList.add('active');
     }
 
-    function processEntry() {
+    function toggleEntryMode() {
+        const mode = document.getElementById('entryMode').value;
+        document.getElementById('existingWrap').style.display = mode === 'existing' ? 'block' : 'none';
+        document.getElementById('newWrap').style.display = mode === 'new' ? 'block' : 'none';
+        document.getElementById('locWrap').style.display = mode === 'new' ? 'block' : 'none';
+        document.getElementById('bulkWrap').style.display = mode === 'bulk' ? 'block' : 'none';
+    }
+
+    // BULK UPLOAD LOGIC
+    function handleFileUpload() {
+        const file = document.getElementById('csvFile').files[0];
+        if (!file) return alert("Select a file first");
+
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const rows = e.target.result.split('\n');
+            rows.forEach(row => {
+                const [name, loc, stock] = row.split(',');
+                if (name && loc) {
+                    inventory[name.trim()] = { location: loc.trim(), balance: parseInt(stock) || 0 };
+                }
+            });
+            syncData();
+            alert("Bulk items imported successfully!");
+        };
+        reader.readAsText(file);
+    }
+
+    // TRANSACTION LOGIC
+    function saveTransaction() {
         const date = document.getElementById('txnDate').value;
         const type = document.getElementById('txnType').value;
         const qty = parseInt(document.getElementById('txnQty').value);
-        const remarks = document.getElementById('txnRemarks').value;
+        const mode = document.getElementById('entryMode').value;
         let itemName = "";
 
-        if(!date || isNaN(qty)) return alert("Please fill Date and Quantity.");
+        if (!date || isNaN(qty)) return alert("Fill required fields");
 
-        if(entryMode === 'new') {
-            const name = document.getElementById('newItemName').value.trim();
-            const loc = document.getElementById('newItemLoc').value.trim();
-            if(!name || !loc) return alert("Please provide Name and Location for new item.");
-            
-            // Register New Item
-            inventory[name] = { location: loc, balance: 0 };
-            itemName = name;
+        if (mode === 'new') {
+            itemName = document.getElementById('newName').value;
+            inventory[itemName] = { location: document.getElementById('newLoc').value, balance: 0 };
         } else {
             itemName = document.getElementById('itemSelect').value;
         }
 
-        // Update Stock
-        if(type === "Input") {
-            inventory[itemName].balance += qty;
-        } else {
-            inventory[itemName].balance -= qty;
-        }
+        if (type === 'Input') inventory[itemName].balance += qty;
+        else inventory[itemName].balance -= qty;
 
-        // Log History
-        historyLog.push({ date, item: itemName, type, qty, remarks });
-        
-        // Reset Form & Refresh
-        resetForm();
-        updateUI();
-        alert("Transaction successful!");
-    }
-
-    function resetForm() {
-        document.getElementById('txnQty').value = "";
-        document.getElementById('txnRemarks').value = "";
-        document.getElementById('newItemName').value = "";
-        document.getElementById('newItemLoc').value = "";
-        setEntryMode('existing');
+        historyLog.push({ date, item: itemName, type, qty, rem: document.getElementById('txnRem').value });
+        syncData();
+        alert("Transaction Saved");
     }
 
     function updateUI() {
-        const stockBody = document.getElementById('stockTableBody');
-        const historyBody = document.getElementById('historyTableBody');
-        const itemSelect = document.getElementById('itemSelect');
-
-        stockBody.innerHTML = '';
-        itemSelect.innerHTML = '';
+        const sBody = document.getElementById('stockTableBody');
+        const hBody = document.getElementById('historyBody');
+        const sel = document.getElementById('itemSelect');
+        
+        sBody.innerHTML = ''; hBody.innerHTML = ''; sel.innerHTML = '';
+        
         for (let item in inventory) {
-            stockBody.innerHTML += `<tr><td>${item}</td><td>${inventory[item].location}</td><td class="${inventory[item].balance < 5 ? 'stock-low' : ''}">${inventory[item].balance}</td></tr>`;
-            itemSelect.innerHTML += `<option value="${item}">${item}</option>`;
+            sBody.innerHTML += `<tr><td>${item}</td><td>${inventory[item].location}</td><td>${inventory[item].balance}</td></tr>`;
+            sel.innerHTML += `<option value="${item}">${item}</option>`;
         }
 
-        historyBody.innerHTML = '';
-        historyLog.slice().reverse().forEach(t => {
-            historyBody.innerHTML += `
-                <tr>
-                    <td>${t.date}</td>
-                    <td>${t.item}</td>
-                    <td><span class="badge ${t.type === 'Input' ? 'in' : 'out'}">${t.type}</span></td>
-                    <td>${t.qty}</td>
-                    <td>${t.remarks}</td>
-                </tr>`;
+        historyLog.slice().reverse().forEach(h => {
+            hBody.innerHTML += `<tr><td>${h.date}</td><td>${h.item}</td><td><span class="badge ${h.type === 'Input' ? 'in' : 'out'}">${h.type}</span></td><td>${h.qty}</td><td>${h.rem}</td></tr>`;
         });
     }
+
+    function clearData() { if(confirm("Delete everything?")) { localStorage.clear(); location.reload(); } }
 
     document.getElementById('txnDate').valueAsDate = new Date();
     updateUI();
 </script>
-
 </body>
 </html>
